@@ -1,1 +1,36 @@
-404: Not Found
+---
+- name: Deploy torik
+  hosts: "{{ host | default('localhost') }}"
+
+
+  vars:
+    repo: "git@github.com:secunity/spectorious.git"
+    dest: "{{ ansible_env.HOME }}/work/spectorious"
+
+
+  tasks:
+    - name: Stash local changes if any exist
+      ansible.builtin.shell: git stash 
+      args:
+        chdir: "{{ dest }}"
+
+    - name: Clone/Update Spectorious repository
+      ansible.builtin.git:
+        repo: "{{ repo }}"
+        dest: "{{ dest }}"
+        version: "{{ branch | default('master') }}"
+        accept_hostkey: yes
+        update : yes
+        key_file: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
+
+    - name: Execute setup.sh script
+      shell: ./setup.sh "{{ clickhouse_server }}" "{{ clickhouse_password }}" "{{ mongodb_server }}" "{{ mongodb_password }}" "{{ mpop_mongodb_server }}" "{{ mpop_mongodb_password }}"
+      args:
+        chdir: "{{ dest }}"
+      register: script_output
+
+    - name: Display script output
+      debug:
+        msg: "{{ script_output.stdout_lines }}"
+
+
