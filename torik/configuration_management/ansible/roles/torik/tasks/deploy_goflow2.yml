@@ -1,0 +1,33 @@
+---
+# tasks/deploy_goflow2.yml
+# Log in to ECR, pull the goflow2 image, and bring the compose stack up.
+
+- name: Get ECR login password
+  become: true
+  ansible.builtin.command: "aws ecr get-login-password --region {{ ecr_region }}"
+  register: ecr_password
+  changed_when: false
+  no_log: true
+
+- name: Log in to ECR via docker login
+  become: true
+  ansible.builtin.command: >
+    docker login --username AWS --password-stdin {{ ecr_registry }}
+  args:
+    stdin: "{{ ecr_password.stdout }}"
+  changed_when: false
+  no_log: true
+
+- name: Pull goflow2 image
+  become: true
+  ansible.builtin.command: "docker pull {{ goflow2_image }}"
+  register: goflow2_pull
+  changed_when: "'Downloaded newer image' in goflow2_pull.stdout"
+
+- name: Bring up goflow2 docker-compose stack
+  become: true
+  ansible.builtin.command: docker-compose up -d
+  args:
+    chdir: "{{ goflow2_dir }}"
+  register: goflow2_up
+  changed_when: "'Creating' in goflow2_up.stdout or 'Starting' in goflow2_up.stdout"
